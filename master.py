@@ -1,6 +1,24 @@
 import sys
+import time
 import multiprocessing 
-  
+class Node:
+    def __init__(self, node_type, node_process):
+        self.node_type = node_type
+        self.node_process = node_process
+        
+    
+    def connect(self, All_process, All_node):
+        All_Process.append(self.node_process)
+       
+        current_in_queue = multiprocessing.Queue()
+        current_out_queue = multiprocessing.Queue()
+        self.in_queue = current_in_queue
+        self.out_queue = current_out_queue
+
+        All_node.append(self)
+        
+        
+
 def sender(conn, msgs): 
     """ 
     function to send messages to other end of pipe 
@@ -20,8 +38,26 @@ def receiver(conn):
         if msg == "END": 
             break
         print("Received the message: {}".format(msg)) 
+
+def Node_creation():
+
+
+def KillAll(All_process):
+    for process in All_process:
+        process.terminate()
+
+def StartMaster(All_Process):
+
+    master_in_queue = multiprocessing.Queue()
+    master_out_queue = multiprocessing.Queue()
+
+    Master = multiprocessing.Process(target=Node_creation, args=('Master', current_queue)) 
+    Observer = multiprocessing.Process(target=Node_creation, args=('Observer', current_queue)) 
   
-def argument_parsing(current_command_list):
+    
+
+
+def argument_parsing(current_command_list, All_Process, All_Node):
     if(current_command_list[0] == 'StartMaster'):
         print('StartMaster')
 
@@ -39,6 +75,7 @@ def argument_parsing(current_command_list):
 
     elif(current_command_list[0] == 'KillAll'):
         print('KillAll')
+        KillAll(All_process)
 
     elif(current_command_list[0] == 'ReceiveAll'):
         print('ReceiveAll')
@@ -51,11 +88,9 @@ def argument_parsing(current_command_list):
 
 if __name__ == "__main__": 
     arg_file= sys.argv[1]
-
     print(arg_file)
   
     command_list = []
-
     with open(arg_file) as af:
         line = af.readline()
         while line:
@@ -64,8 +99,10 @@ if __name__ == "__main__":
             line = af.readline()
     print(command_list)
 
+    All_Process = []
+    All_Node = []
     for command in command_list:
-        argument_parsing(command)
+        argument_parsing(command, All_Process, All_Node)
 	       
 
 
