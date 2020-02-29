@@ -1,3 +1,4 @@
+import sys
 import multiprocessing 
   
 def sender(conn, msgs): 
@@ -20,21 +21,56 @@ def receiver(conn):
             break
         print("Received the message: {}".format(msg)) 
   
+def argument_parsing(current_command_list):
+    if(current_command_list[0] == 'StartMaster'):
+        print('StartMaster')
+
+    elif(current_command_list[0] == 'CreateNode'):
+        print('CreateNode')
+
+    elif(current_command_list[0] == 'Send'):
+        print('Send')
+
+    elif(current_command_list[0] == 'Receive'):
+        print('Receive')
+
+    elif(current_command_list[0] == 'BeginSnapshot'):
+        print('BeginSnapshot')
+
+    elif(current_command_list[0] == 'KillAll'):
+        print('KillAll')
+
+    elif(current_command_list[0] == 'ReceiveAll'):
+        print('ReceiveAll')
+
+    elif(current_command_list[0] == 'CollectState'):
+        print('CollectState')
+
+    elif(current_command_list[0] == 'PrintSnapshot'):
+        print('PrintSnapshot')
+
 if __name__ == "__main__": 
-    # messages to be sent 
-    msgs = ["hello", "hey", "hru?", "END"] 
+    arg_file= sys.argv[1]
+
+    print(arg_file)
   
-    # creating a pipe 
-    parent_conn, child_conn = multiprocessing.Pipe() 
-  
-    # creating new processes 
-    p1 = multiprocessing.Process(target=sender, args=(parent_conn,msgs)) 
-    p2 = multiprocessing.Process(target=receiver, args=(child_conn,)) 
-  
-    # running processes 
-    p1.start() 
-    p2.start() 
-  
-    # wait until processes finish 
-    p1.join() 
-    p2.join() 
+    command_list = []
+
+    with open(arg_file) as af:
+        line = af.readline()
+        while line:
+            temp_arg = line.split()
+            command_list.append(temp_arg)
+            line = af.readline()
+    print(command_list)
+
+    for command in command_list:
+        argument_parsing(command)
+	       
+
+
+
+
+
+
+
