@@ -201,7 +201,13 @@ def Send(Sender_ID, Receiver_ID, Amount, All_Process, All_Node):
         if(node.node_id == Sender_ID):
              msg = Sender_ID + " " + Receiver_ID + " " + str(Amount)
              node.master_queue.put(msg)
-             node.send_event.set()
+             if(not node.send_event.is_set()):
+                 node.send_event.set()
+             else:
+                 while(node.send_event.is_set()):
+                     if(not node.send_event.is_set()):
+                         node.send_event.set()
+                         break
              
 
 '''
