@@ -150,9 +150,11 @@ class Node:
             
 
                 
-def KillAll(All_Process):
+def KillAll(All_Process, All_Node):
     for process in All_Process:
         process.terminate()
+    for node in All_Node:
+        del node
 
 def StartMaster_Observer(All_Process, All_Node, master_queue):
     
@@ -242,7 +244,7 @@ def argument_parsing(current_command_list, All_Process, All_Node, manager):
 
     elif(current_command_list[0] == 'KillAll'):
         print('KillAll')
-        KillAll(All_Process)
+        KillAll(All_Process, All_Node)
 
     elif(current_command_list[0] == 'ReceiveAll'):
         print('ReceiveAll')
