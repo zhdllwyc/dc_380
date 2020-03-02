@@ -35,7 +35,7 @@ mpm.AutoProxy = AutoProxy
 
 #a class for node
 class Node:
-    def __init__(self, send_event, receive_event, channel_event, snapshot_event, node_type, Node_ID, Initial_Balance, master_queue):
+    def __init__(self, send_event, receive_event, channel_event, snapshot_event, snapshot_finish_event, node_type, Node_ID, Initial_Balance, master_queue):
         
         self.node_type = node_type
         self.node_id = Node_ID
@@ -48,6 +48,7 @@ class Node:
         self.receive_event = receive_event
         self.channel_event = channel_event
         self.snapshot_event = snapshot_event
+        self.snapshot_finish_event = snapshot_finish_event
         #the channel between given node and the master
         self.master_queue = master_queue
 
@@ -55,7 +56,7 @@ class Node:
         if(self.node_type == 'Observer'):
             self.node_process = multiprocessing.Process(target=self.observer_notify, args=(master_queue, send_event, receive_event, channel_event, node_type, Node_ID, Initial_Balance))
         else: 
-            self.node_process = multiprocessing.Process(target=self.node_notify, args=(master_queue, send_event, receive_event, channel_event, snapshot_event, node_type, Node_ID, Initial_Balance))
+            self.node_process = multiprocessing.Process(target=self.node_notify, args=(master_queue, send_event, receive_event, channel_event, snapshot_event, snapshot_finish_event, node_type, Node_ID, Initial_Balance))
        
         self.node_process.start()
         
@@ -71,7 +72,7 @@ class Node:
         self.send_event = send_event
         self.receive_event = receive_event
         self.channel_event = channel_event
-
+        
         #connection from master to observer
         self.master_queue = master_queue
         # a dictionary of incomming queue/channel, key: other node in the network, value: channel
@@ -103,15 +104,17 @@ class Node:
                 self.send_event.clear()
         
 
-    def node_notify(self, master_queue, send_event, receive_event, channel_event, snapshot_event, node_type, Node_ID, Initial_Balance):
+    def node_notify(self, master_queue, send_event, receive_event, channel_event, snapshot_event, snapshot_finish_event, node_type, Node_ID, Initial_Balance):
 
         #indicating if this node ever receive a snapshot command
         #saved state when receive snapshot msg
         #channel state for chandy-lamport
+        #number_of_snapshot = n-1 means the node finishes snapshoting
         first_snap = True
         save_state = 0
         channel_state = {}
         incoming_node_id = 0
+        number_of_snapshot = 0
         #need to reinitialize because in different memory space
         self.node_type = node_type
         self.node_id = Node_ID
@@ -121,6 +124,7 @@ class Node:
         self.receive_event = receive_event
         self.channel_event = channel_event
         self.snapshot_event = snapshot_event
+        self.snapshot_finish_event = snapshot_finish_event
         #connection from master to this node/process
         self.master_queue = master_queue
         # a dictionary of incomming queue/channel, key: other node in the network, value: channel
@@ -174,15 +178,18 @@ class Node:
                     retrieve = self.in_queue[rand_sender].get()
                 
                 if(retrieve == "TakeSnapshot"):
-                    if(first_snap):
+                    number_of_snapshot = number_of_snapshot+1
+                    if(first_snap): 
                         first_snap = False
                         save_state = self.balance
                         incoming_node_id = sender
-                        print(retrieve)
+                        print(receiver+ " " +retrieve+ " " +"-1")
                         msg = "TakeSnapshot"
                         for other_node_id in self.out_queue:
                             self.out_queue[other_node_id].put(msg)
                             channel_state[other_node_id] = []
+                    if(number_of_snapshot == len(channel_state)):
+                        snapshot_finish_event.set()
 
                 else:
                     print(self.balance)
@@ -199,7 +206,7 @@ class Node:
                     if(first_snap):
                         first_snap = False
                         save_state = self.balance
-                        print(self.in_queue[0].get())
+                        print(self.node_id+ " " +self.in_queue[0].get()+ " " +"-1")
                         msg = "TakeSnapshot"
                         for other_node_id in self.out_queue:
                             self.out_queue[other_node_id].put(msg)
@@ -217,7 +224,7 @@ def StartMaster_Observer(All_Process, All_Node, master_queue):
     #observer only send but not receive
     ObserverSendEvent = multiprocessing.Event()
     Observer_addchannel = multiprocessing.Event()
-    Observer = Node(ObserverSendEvent, None, Observer_addchannel, None, 'Observer', 0, 0, master_queue)
+    Observer = Node(ObserverSendEvent, None, Observer_addchannel, None, None, 'Observer', 0, 0, master_queue)
     print(type(Observer.node_id))
     All_Process.append(Observer.node_process)
     All_Node.append(Observer)
@@ -229,7 +236,8 @@ def CreateNode(Node_ID, Initial_Balance, master_queue, All_Process, All_Node, ma
     Node_receiveEvent = multiprocessing.Event()
     Node_addchannel = multiprocessing.Event()
     Node_snapshot = multiprocessing.Event()
-    Current_Node = Node(Node_sendEvent, Node_receiveEvent, Node_addchannel, Node_snapshot, 'Node', Node_ID, int(Initial_Balance), master_queue)
+    Node_snapshot_finish_event = multiprocessing.Event()
+    Current_Node = Node(Node_sendEvent, Node_receiveEvent, Node_addchannel, Node_snapshot, Node_snapshot_finish_event, 'Node', Node_ID, int(Initial_Balance), master_queue)
     All_Process.append(Current_Node.node_process)
     All_Node.append(Current_Node)
 
@@ -309,8 +317,11 @@ def BeginSnapshot(NodeID, SendNode, All_Process, All_Node):
                          node.send_event.set()
                          break
 
-
-
+def CollectState(All_Process, All_Node):
+    for node in All_Node:
+        if (node.node_type == 'Observer'):
+            msg = "Collect"
+            node.master_queue.put(msg)
 
 def argument_parsing(current_command_list, All_Process, All_Node, manager):
     if(current_command_list[0] == 'StartMaster'):
