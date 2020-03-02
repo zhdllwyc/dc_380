@@ -83,8 +83,8 @@ class Node:
             if(self.channel_event.is_set()):
                 
                 new_node_id = self.master_queue.get()
-                out_channel =  self.master_queue.get()
-                in_channel =  self.master_queue.get()
+                out_channel = self.master_queue.get()
+                in_channel = self.master_queue.get()
                 self.in_queue[new_node_id] = in_channel
                 self.out_queue[new_node_id] = out_channel
                 print("observer")
@@ -93,7 +93,6 @@ class Node:
                 print(self.in_queue)
                 print(self.out_queue)
                 self.channel_event.clear()
-            #if(self.send_event.is_set()):
 
         
 
@@ -118,8 +117,8 @@ class Node:
             #waiting to create new channel with new node
             if(self.channel_event.is_set()):
                 new_node_id = self.master_queue.get()
-                out_channel =  self.master_queue.get()
-                in_channel =  self.master_queue.get()
+                out_channel = self.master_queue.get()
+                in_channel = self.master_queue.get()
                 self.in_queue[new_node_id] = in_channel
                 self.out_queue[new_node_id] = out_channel
                 
@@ -140,13 +139,24 @@ class Node:
                     self.balance=self.balance-amount
                     print(self.balance)
 
-                    for node_ID in self.out_queue:
-                        if(node_ID == receiver):
-                            print(self.out_queue[node_ID])
-                            send_msg = str(amount)
-                            print(send_msg)
-                            self.out_queue[node_ID].put(send_msg)
+                    print(self.out_queue[receiver])
+                    send_msg = str(amount)
+                    print(send_msg)
+                    self.out_queue[receiver].put(send_msg)
                 self.send_event.clear()
+
+            if(self.receive_event.is_set()):
+                msg = self.master_queue.get().split()
+                sender = msg[1]
+                if sender:
+                    amount = self.in_queue[sender].get()
+                else:
+                    rand_sender = random.choice(list(self.in_queue))
+                    amount = self.in_queue[rand_sender].get()
+                print(self.balance)
+                self.balance=self.balance+int(amount)
+                print(self.balance)
+                self.receive_event.clear()
             
 
                 
@@ -210,11 +220,21 @@ def Send(Sender_ID, Receiver_ID, Amount, All_Process, All_Node):
                      if(not node.send_event.is_set()):
                          node.send_event.set()
                          break
-             
 
-'''
+
 def Receive(Receiver_ID, Sender_ID, All_Process, All_Node):
-'''
+    for node in All_Node:
+        if (node.node_id == Receiver_ID):
+            msg = Receiver_ID + " " + Sender_ID
+            node.master_queue.put(msg)
+            if(not node.receive_event.is_set()):
+                 node.receive_event.set()
+
+
+# def ReceiveAll(All_Process, All_Node):
+#     for node in All_Node:
+
+
 
 def argument_parsing(current_command_list, All_Process, All_Node, manager):
     if(current_command_list[0] == 'StartMaster'):
@@ -237,7 +257,7 @@ def argument_parsing(current_command_list, All_Process, All_Node, manager):
 
     elif(current_command_list[0] == 'Receive'):
         print('Receive')
-        #Receive(current_command_list[1], current_command_list[2], All_Process, All_Node)
+        Receive(current_command_list[1], current_command_list[2], All_Process, All_Node)
 
     elif(current_command_list[0] == 'BeginSnapshot'):
         print('BeginSnapshot')
@@ -248,6 +268,7 @@ def argument_parsing(current_command_list, All_Process, All_Node, manager):
 
     elif(current_command_list[0] == 'ReceiveAll'):
         print('ReceiveAll')
+        ReceiveAll(All_Process, All_Node)
 
     elif(current_command_list[0] == 'CollectState'):
         print('CollectState')
