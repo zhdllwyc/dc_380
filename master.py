@@ -1,6 +1,7 @@
 import sys
 import time
 import multiprocessing 
+import random
 import multiprocessing.managers as mpm
 
 
@@ -163,7 +164,6 @@ class Node:
                     print(send_msg)
                     self.out_queue[receiver].put(send_msg)
                 self.send_event.clear()
-            
 
             #upon receiving 
             if(self.receive_event.is_set()):
@@ -224,13 +224,13 @@ def StartMaster_Observer(All_Process, All_Node, master_queue):
     #observer only send but not receive
     ObserverSendEvent = multiprocessing.Event()
     Observer_addchannel = multiprocessing.Event()
-    Observer = Node(ObserverSendEvent, None, Observer_addchannel, None, None, 'Observer', 0, 0, master_queue)
+    Observer = Node(ObserverSendEvent, None, None, Observer_addchannel, None, None, 'Observer', 0, 0, master_queue)
     print(type(Observer.node_id))
     All_Process.append(Observer.node_process)
     All_Node.append(Observer)
 
    
-def CreateNode(Node_ID, Initial_Balance, master_queue, All_Process, All_Node, manager):
+def CreateNode(Node_ID, Initial_Balance, master_queue, All_Process, All_Node, All_Queue, manager):
 
     Node_sendEvent = multiprocessing.Event()
     Node_receiveEvent = multiprocessing.Event()
@@ -249,6 +249,8 @@ def CreateNode(Node_ID, Initial_Balance, master_queue, All_Process, All_Node, ma
             current_in_queue = manager.Queue()
             #from curr_node to node
             current_out_queue = manager.Queue()
+
+            All_Queue.append([node.node_id, Node_ID, current_in_queue, current_out_queue])
 
             #telling node about this two queue/channel
             node.master_queue.put(Node_ID)
@@ -284,18 +286,34 @@ def Receive(Receiver_ID, Sender_ID, All_Process, All_Node):
         if (node.node_id == Receiver_ID):
             msg = Receiver_ID + " " + Sender_ID
             if(not node.receive_event.is_set()):
-                 node.master_queue.put(msg)
-                 node.receive_event.set()
+                node.master_queue.put(msg)
+                node.receive_event.set()
             else:
-                 while(node.receive_event.is_set()):
-                     if(not node.receive_event.is_set()):
-                         node.master_queue.put(msg)
-                         node.receive_event.set()
-                         break
+                while(node.receive_event.is_set()):
+                    if(not node.receive_event.is_set()):
+                        node.master_queue.put(msg)
+                        node.receive_event.set()
+                        break
 
 
-# def ReceiveAll(All_Process, All_Node):
-#     for node in All_Node:
+def ReceiveAll(All_Process, All_Node, All_Queue):
+    non_empty_channel = []
+    for each_queue in All_Queue:
+        if each_queue[0] and each_queue[1]:
+            if not each_queue[2].empty():
+                Receiver_ID = each_queue[1]
+                Sender_ID = each_queue[0]
+                non_empty_channel.append([Receiver_ID, Sender_ID])
+            if not each_queue[3].empty():
+                Receiver_ID = each_queue[0]
+                Sender_ID = each_queue[1]
+                non_empty_channel.append([Receiver_ID, Sender_ID])
+
+    while len(non_empty_channel):
+        random_channel = random.randint(0, len(non_empty_channel)-1)
+        Receive(non_empty_channel[random_channel][0], non_empty_channel[random_channel][1], All_Process, All_Node)
+        non_empty_channel.pop(random_channel)
+
 
 def BeginSnapshot(NodeID, SendNode, All_Process, All_Node):
     #Observer sends a takesnapsot msg to the given node
@@ -317,13 +335,15 @@ def BeginSnapshot(NodeID, SendNode, All_Process, All_Node):
                          node.send_event.set()
                          break
 
+
 def CollectState(All_Process, All_Node):
     for node in All_Node:
         if (node.node_type == 'Observer'):
             msg = "Collect"
             node.master_queue.put(msg)
 
-def argument_parsing(current_command_list, All_Process, All_Node, manager):
+
+def argument_parsing(current_command_list, All_Process, All_Node, All_Queue, manager):
     if(current_command_list[0] == 'StartMaster'):
         print('StartMaster')
         #connection between master and observer, unidirection queue, only master to observer
@@ -334,7 +354,7 @@ def argument_parsing(current_command_list, All_Process, All_Node, manager):
         print('CreateNode')
         #connection between master and observer, unidirection queue, only master to observer
         master_queue = manager.Queue()
-        CreateNode(current_command_list[1], current_command_list[2], master_queue, All_Process, All_Node, manager)
+        CreateNode(current_command_list[1], current_command_list[2], master_queue, All_Process, All_Node, All_Queue, manager)
 
     elif(current_command_list[0] == 'Send'):
         print('Send')
@@ -363,7 +383,7 @@ def argument_parsing(current_command_list, All_Process, All_Node, manager):
 
     elif(current_command_list[0] == 'ReceiveAll'):
         print('ReceiveAll')
-        ReceiveAll(All_Process, All_Node)
+        ReceiveAll(All_Process, All_Node, All_Queue)
 
     elif(current_command_list[0] == 'CollectState'):
         print('CollectState')
@@ -379,11 +399,12 @@ if __name__ == "__main__":
     All_Process = []
     #a list of all nodes
     All_Node = []
+    All_Queue = []
     manager = multiprocessing.Manager()
     while( True ):
         user_input = input ("User input :")
         current_command_list = user_input.split()
-        argument_parsing(current_command_list, All_Process, All_Node, manager)
+        argument_parsing(current_command_list, All_Process, All_Node, All_Queue, manager)
            
 
 
