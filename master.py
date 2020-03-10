@@ -95,11 +95,13 @@ def Send(Sender_ID, Receiver_ID, Amount, All_Process, All_Node):
     for node in All_Node:
         if(node.node_id == Sender_ID):
              msg = Sender_ID + " " + Receiver_ID + " " + str(Amount)
+             print(msg)
              if(not node.send_event.is_set()):
+                 print(msg)
                  node.master_queue.put(msg)
                  node.send_event.set()
              else:
-                 while(node.send_event.is_set()):
+                 while(True):
                      if(not node.send_event.is_set()):
                          node.master_queue.put(msg)
                          node.send_event.set()
@@ -163,7 +165,7 @@ def BeginSnapshot(NodeID, SendNode, All_Process, All_Node):
                  node.send_event.set()
                  
             else:
-                 while( (SendNode.snapshot_event.is_set()) or (node.send_event.is_set())):
+                 while( True ):
                      if((not SendNode.snapshot_event.is_set()) and (not node.send_event.is_set())):
                          node.master_queue.put(msg)
                          SendNode.snapshot_event.set()
@@ -179,7 +181,7 @@ def CollectState(All_Process, All_Node):
                 node.master_queue.put(msg)
                 node.collect_event.set()
             else:
-                while(node.collect_event.is_set()):
+                while(True):
                     if(not node.collect_event.is_set()):
                         node.master_queue.put(msg)
                         node.collect_event.set()
@@ -190,7 +192,7 @@ def CollectState(All_Process, All_Node):
             if(not node.collect_event.is_set()):
                 node.collect_event.set()
             else:
-                while(node.collect_event.is_set()):
+                while(True):
                     if(not node.collect_event.is_set()):
                         node.collect_event.set()
                         break
@@ -329,7 +331,7 @@ if __name__ == "__main__":
     for command in command_list:
         print(" ".join(command))
         argument_parsing(command, All_Process, All_Node, All_Queue, manager,observer_queue)
-        #time.sleep(0.1)
+        time.sleep(0.1)
         
     time.sleep(2)
     KillAll(All_Process,All_Node)

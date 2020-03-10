@@ -143,6 +143,7 @@ class Node:
                 self.channel_event.clear()
 
             if(self.send_event.is_set()):
+                
                 msg = self.master_queue.get().split()
                 receiver = msg[1]
                 amount = int(msg[2])
@@ -164,7 +165,7 @@ class Node:
                 receiver = msg[0]
                 sender = msg[1]
                 retrieve = None
-                print(msg)
+                print(self.node_id+" "+retrieve)
                 if (sender!="None"):
                     retrieve = self.in_queue[sender].get()
                 else:
