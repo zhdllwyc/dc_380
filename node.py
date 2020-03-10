@@ -1,5 +1,6 @@
 import sys
 import time
+import copy
 import multiprocessing 
 import random
 import multiprocessing.managers as mpm
@@ -51,7 +52,11 @@ class Node:
         self.in_queue = {}
         # a dictionary of outgoing queue/channel, key: other node in the network, value: channel
         self.out_queue = {}
-        
+        #for observer to collect state
+        final_state={}
+        copy_final_state={}
+        count_msg = 0
+        collect_sent=False
         while True:
             
             #waiting to create new channel with new node
@@ -70,12 +75,30 @@ class Node:
                 self.out_queue[sender_id].put("TakeSnapshot")
                 self.send_event.clear()
 
-            if(self.collect_event.is_set()):
+            if((collect_sent==False) and (self.collect_event.is_set())):
                 msg = self.master_queue.get()
                 if msg == "Collect":
                     for node_id in self.out_queue:
                         self.out_queue[node_id].put(msg)
+                collect_sent = True
+                
+            for nodeid in self.in_queue:
+                if(not self.in_queue[nodeid].empty()):
+                    print("counting ", count_msg)
+                    print("msg ", msg)
+                    count_msg = count_msg+1
+                    msg = self.in_queue[nodeid].get()
+                    final_state[nodeid] = msg
+            
+            if( (not(len(self.in_queue)==0)) and (count_msg == len(self.in_queue)) ):
+                count_msg=0
+                print(final_state)
+                copy_final_state = copy.deepcopy(final_state)
+                self.master_queue.put(copy_final_state)
+                final_state={}
                 self.collect_event.clear()
+                collect_sent = False
+            
 
 
     def node_notify(self, master_queue, send_event, receive_event, channel_event, collect_event, snapshot_event, snapshot_finish_event, node_type, Node_ID, Initial_Balance):
@@ -87,6 +110,7 @@ class Node:
         first_snap = True
         save_state = 0
         channel_state = {}
+        final_channel_state={}
         incoming_node_id = 0
         number_of_snapshot = 0
         #need to reinitialize because in different memory space
@@ -132,19 +156,23 @@ class Node:
                     self.out_queue[receiver].put(send_msg)
                 self.send_event.clear()
 
+            
+
             #upon receiving 
             if(self.receive_event.is_set()):
                 msg = self.master_queue.get().split()
                 receiver = msg[0]
                 sender = msg[1]
                 retrieve = None
+                print(msg)
                 if (sender!="None"):
                     retrieve = self.in_queue[sender].get()
                 else:
                     sender = random.choice(list(self.in_queue.keys())[1:])
                     retrieve = self.in_queue[sender].get()
-                
+                print(retrieve)
                 if(retrieve == "TakeSnapshot"):
+                    print(self.node_id+" Takesnapshot")
                     number_of_snapshot = number_of_snapshot+1
                     if(first_snap): 
                         first_snap = False
@@ -152,16 +180,22 @@ class Node:
                         incoming_node_id = sender
                         print(sender+ " " +retrieve+ " " +"-1")
                         msg = "TakeSnapshot"
+                        channel_state={}
                         for other_node_id in self.out_queue:
                             if other_node_id != '0':
                                 self.out_queue[other_node_id].put(msg)
                                 channel_state[other_node_id] = []
-                    if(number_of_snapshot == len(channel_state)):
+                    if(number_of_snapshot == (len(self.out_queue)-1)):
                         print(self.node_id, "SNAPSHOT FINISHED")
                         self.snapshot_finish_event.set()
-
+                        final_channel_state = copy.deepcopy(channel_state)
+                        number_of_snapshot=0
+                        print(self.node_id,self.snapshot_finish_event.is_set())
                 else:
                     print(sender+ " " +"Transfer"+ " " +retrieve)
+                    print("receive event ",self.receive_event.is_set())
+                    print("collect event ",self.collect_event.is_set())
+                    print(self.node_id, self.snapshot_finish_event.is_set())
                     print(self.balance)
                     self.balance=self.balance+int(retrieve)
                     print(self.balance)
@@ -170,14 +204,21 @@ class Node:
                 
                 self.receive_event.clear()
             
+            
             #sending own saved state and channel state to observer
             if(self.collect_event.is_set()):
                 if(self.in_queue['0'].get() == "Collect"):
-                    # print("Node state is ", save_state)
-                    # print("Channel state is ", channel_state)
-                    msg = [save_state, channel_state]
+                    print("Node state is ", save_state)
+                    print("Node recieve state is ", self.receive_event.is_set())
+                    print("Channel state is ", channel_state)
+                    msg = [save_state, final_channel_state]
                     self.out_queue['0'].put(msg)
+                    print("empty queue ", self.out_queue['0'].empty())
                     self.collect_event.clear()
+                    self.snapshot_finish_event.clear()
+                    save_state=0
+                    incoming_node_id=0
+                    first_snap = True
 
             #polling on the observer incoming channel, this is the node the observer send the snapshot msg
             if(len(self.in_queue)!=0):
@@ -186,6 +227,8 @@ class Node:
                         first_snap = False
                         save_state = self.balance
                         msg = self.in_queue['0'].get()
+                        print(self.node_id+ " "+msg)
+                        channel_state={}
                         for other_node_id in self.out_queue:
                             if other_node_id != '0':
                                 self.out_queue[other_node_id].put(msg)

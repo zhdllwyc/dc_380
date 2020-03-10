@@ -4,6 +4,7 @@ import multiprocessing
 import random
 import multiprocessing.managers as mpm
 from node import Node
+import atexit
 
 
 #patching python3 bug
@@ -107,13 +108,14 @@ def Send(Sender_ID, Receiver_ID, Amount, All_Process, All_Node):
 
 def Receive(Receiver_ID, Sender_ID, All_Process, All_Node):
     for node in All_Node:
-        if (node.node_id == Receiver_ID) and (not node.snapshot_finish_event.is_set()):
+        #and (not node.snapshot_finish_event.is_set())
+        if (node.node_id == Receiver_ID) :
             msg = Receiver_ID + " " + Sender_ID
             if(not node.receive_event.is_set()):
                 node.master_queue.put(msg)
                 node.receive_event.set()
             else:
-                while(node.receive_event.is_set()):
+                while(True):
                     if(not node.receive_event.is_set()):
                         node.master_queue.put(msg)
                         node.receive_event.set()
@@ -142,12 +144,14 @@ def ReceiveAll(All_Process, All_Node, All_Queue):
         random_channel = random.randint(0, len(non_empty_channel)-1)
         Receive(non_empty_channel[random_channel][0], non_empty_channel[random_channel][1], All_Process, All_Node)
         non_empty_channel = DetectChannel(All_Queue)
+    print(len(non_empty_channel))
     for node in All_Node:
         if(node.node_type != 'Observer'):
             node.snapshot_finish_event.clear()
 
 
 def BeginSnapshot(NodeID, SendNode, All_Process, All_Node):
+    #time.sleep(0.3)
     #Observer sends a takesnapsot msg to the given node
     for node in All_Node:
         if(node.node_type == 'Observer'):
@@ -192,10 +196,28 @@ def CollectState(All_Process, All_Node):
                         break
 
 
-def PrintSnapshot(All_Process, All_Node, All_Queue):
+def PrintSnapshot(All_Node, observer_queue):
     N = len(All_Node)
     all_node_state = [0] * N
     all_channel_state = [[0]*N for i in range(N)]
+    observer_msg = None
+    while(True):
+        #print(observer_queue.empty())
+        #time.sleep(0.1)
+        if(not observer_queue.empty()): 
+            observer_msg = observer_queue.get()
+            print(observer_msg)
+            break
+    print(observer_msg)
+    for nodeid in observer_msg:
+        all_node_state[int(nodeid)] = observer_msg[nodeid][0]
+        #observer_msg[nodeid][1]=channel_state
+        for node_channel in observer_msg[nodeid][1]:
+            total_amount = 0
+            for transaction in observer_msg[nodeid][1][node_channel]:
+                total_amount=total_amount+int(transaction)
+            all_channel_state[int(node_channel)][int(nodeid)] = total_amount 
+    '''
     for each_queue in All_Queue:
         # print(each_queue[0], each_queue[1], each_queue[2].get(), each_queue[3].get())
         if(each_queue[0] == "0") and (not each_queue[3].empty()):
@@ -209,7 +231,7 @@ def PrintSnapshot(All_Process, All_Node, All_Queue):
         all_node_state[node_id] = node_state
         for sender in channel_state:
             all_channel_state[int(sender)][node_id] = sum(channel_state[sender])
-
+    '''
     print("---Node states")
     for i in range(1, N):
         print("Node" + " " + str(i) + " = " + str(all_node_state[i]))
@@ -222,10 +244,11 @@ def PrintSnapshot(All_Process, All_Node, All_Queue):
 
 
 
-def argument_parsing(current_command_list, All_Process, All_Node, All_Queue, manager):
+def argument_parsing(current_command_list, All_Process, All_Node, All_Queue, manager, observer_queue):
+    
     if(current_command_list[0] == 'StartMaster'):
         # connection between master and observer, unidirection queue, only master to observer
-        master_queue = manager.Queue()
+        master_queue = observer_queue
         StartMaster_Observer(All_Process, All_Node, master_queue)
 
     elif(current_command_list[0] == 'CreateNode'):
@@ -246,6 +269,7 @@ def argument_parsing(current_command_list, All_Process, All_Node, All_Queue, man
         Receive(Receiver, Sender, All_Process, All_Node)
 
     elif(current_command_list[0] == 'BeginSnapshot'):
+        
         # tell observer to begin snapshot
         SendNode = None
         for node in All_Node:
@@ -267,7 +291,7 @@ def argument_parsing(current_command_list, All_Process, All_Node, All_Queue, man
 
     elif(current_command_list[0] == 'PrintSnapshot'):
         # print snapshot
-        PrintSnapshot(All_Process, All_Node, All_Queue)
+        PrintSnapshot(All_Node, observer_queue)
 
 
 if __name__ == "__main__": 
@@ -301,13 +325,14 @@ if __name__ == "__main__":
     af.close()
     print(command_list)
 
-    i = 0
-    while( True ):
-        if i < len(command_list):
-            print(" ".join(command_list[i]))
-            argument_parsing(command_list[i], All_Process, All_Node, All_Queue, manager)
-            time.sleep(0.1)
-            i += 1
+    observer_queue = manager.Queue()
+    for command in command_list:
+        print(" ".join(command))
+        argument_parsing(command, All_Process, All_Node, All_Queue, manager,observer_queue)
+        time.sleep(0.1)
+        
+    time.sleep(2)
+    KillAll(All_Process,All_Node)
 
 
 
