@@ -155,6 +155,7 @@ class Node:
                     print(self.balance)
                     send_msg = str(amount)
                     self.out_queue[receiver].put(send_msg)
+                
                 self.send_event.clear()
 
             
@@ -165,7 +166,7 @@ class Node:
                 receiver = msg[0]
                 sender = msg[1]
                 retrieve = None
-                print(self.node_id+" "+retrieve)
+                print(msg)
                 if (sender!="None"):
                     retrieve = self.in_queue[sender].get()
                 else:

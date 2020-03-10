@@ -13,7 +13,4 @@ Receive 2 1
 1 Transfer 300
 Receive 2
 1 Transfer 400
-Receive 2
 ReceiveAll
-CollectState
-PrintSnapshot

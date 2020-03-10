@@ -81,13 +81,27 @@ def CreateNode(Node_ID, Initial_Balance, master_queue, All_Process, All_Node, Al
             node.master_queue.put(Node_ID)
             node.master_queue.put(current_in_queue)
             node.master_queue.put(current_out_queue)
-            node.channel_event.set()
+            #node.channel_event.set()
+            if(not node.channel_event.is_set()):
+                node.channel_event.set()
+            else:
+                while(True):
+                    if(not node.channel_event.is_set()):
+                        node.channel_event.set()
+                        break
 
             #telling curr_node about this two queue/channel
             Current_Node.master_queue.put(node.node_id)
             Current_Node.master_queue.put(current_out_queue)
             Current_Node.master_queue.put(current_in_queue)
-            Current_Node.channel_event.set()
+            #Current_Node.channel_event.set()
+            if(not Current_Node.channel_event.is_set()):
+                Current_Node.channel_event.set()
+            else:
+                while(True):
+                    if(not Current_Node.channel_event.is_set()):
+                        Current_Node.channel_event.set()
+                        break
 
 
 def Send(Sender_ID, Receiver_ID, Amount, All_Process, All_Node):
@@ -141,15 +155,19 @@ def DetectChannel(All_Queue):
 
 def ReceiveAll(All_Process, All_Node, All_Queue):
     non_empty_channel = DetectChannel(All_Queue)
-    while len(non_empty_channel):
+    while True:
         # print(non_empty_channel)
         random_channel = random.randint(0, len(non_empty_channel)-1)
         Receive(non_empty_channel[random_channel][0], non_empty_channel[random_channel][1], All_Process, All_Node)
         non_empty_channel = DetectChannel(All_Queue)
+        if(len(non_empty_channel)==0):
+            break
     print(len(non_empty_channel))
+    
     for node in All_Node:
         if(node.node_type != 'Observer'):
             node.snapshot_finish_event.clear()
+    
 
 
 def BeginSnapshot(NodeID, SendNode, All_Process, All_Node):
