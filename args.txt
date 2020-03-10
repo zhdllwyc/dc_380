@@ -15,17 +15,3 @@ Receive 2
 ReceiveAll
 CollectState
 PrintSnapshot
-Send 1 2 30
-Send 2 1 10
-Send 1 2 40
-Receive 2 1
-1 Transfer 30
-BeginSnapshot 1
-Started by Node 1
-Receive 2
-1 Transfer 40
-Receive 2
-1 SnapshotToken -1
-ReceiveAll
-CollectState
-PrintSnapshot

@@ -171,6 +171,8 @@ class Node:
                     sender = random.choice(list(self.in_queue.keys())[1:])
                     retrieve = self.in_queue[sender].get()
                 print(retrieve)
+                if(retrieve == None):
+                    continue
                 if(retrieve == "TakeSnapshot"):
                     print(self.node_id+" Takesnapshot")
                     number_of_snapshot = number_of_snapshot+1

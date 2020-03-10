@@ -329,7 +329,7 @@ if __name__ == "__main__":
     for command in command_list:
         print(" ".join(command))
         argument_parsing(command, All_Process, All_Node, All_Queue, manager,observer_queue)
-        time.sleep(0.1)
+        #time.sleep(0.1)
         
     time.sleep(2)
     KillAll(All_Process,All_Node)
