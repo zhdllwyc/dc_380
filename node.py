@@ -169,15 +169,19 @@ class Node:
                 print("msg")
                 print(msg)
                 print(sender)
-                if (sender!="None"):
+                
+                if (sender!="None" and (not self.in_queue[sender].empty()) ):
                     retrieve = self.in_queue[sender].get()
                 else:
                     sender = random.choice(list(self.in_queue.keys())[1:])
-                    retrieve = self.in_queue[sender].get()
-                print(retrieve)
+                    if(not self.in_queue[sender].empty()):
+                        retrieve = self.in_queue[sender].get()
+                
+                '''
                 if(self.in_queue[sender].empty()):
                     self.receive_event.clear()
                     continue
+                '''
                 if(retrieve == None):
                     self.receive_event.clear()
                     continue
@@ -241,6 +245,7 @@ class Node:
                         channel_state={}
                         for other_node_id in self.out_queue:
                             if other_node_id != '0':
+                                print(other_node_id+ " "+msg)
                                 self.out_queue[other_node_id].put(msg)
                                 channel_state[other_node_id] = []
                         self.snapshot_event.clear()

@@ -160,7 +160,6 @@ def DetectChannel(All_Queue):
 
 
 def ReceiveAll(All_Process, All_Node, All_Queue):
-    print(All_Queue)
     non_empty_channel = DetectChannel(All_Queue)
     print(len(non_empty_channel))
     
@@ -187,11 +186,11 @@ def ReceiveAll(All_Process, All_Node, All_Queue):
         print(non_empty_channel)
         print("-------------------------------------------------")
     
-    '''
+    
     for node in All_Node:
         if(node.node_type != 'Observer'):
             node.snapshot_finish_event.clear()
-    '''
+    
 
 
 def BeginSnapshot(NodeID, SendNode, All_Process, All_Node):
