@@ -2,3 +2,6 @@ Name:  Yingchen Wang  Zhaoyuan He
 UTEID:                  zh4938
 CS ids:                  zyhe
 
+
+We implement a crude distributed bank system based on Chandy-Lamport global snapshot algorithm in Python by using Multiprocessing. 
+It takes a consistent-global snapshot of all participating nodes which contains both the individual state of each node and the individual state of each communication channel.
