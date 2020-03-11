@@ -3,16 +3,19 @@ UTEID:    yw23835       zh4938
 CS ids:   yingchen       zyhe
 
 
-We implement a distributed bank system based on Chandy-Lamport global snapshot algorithm in Python by using Multiprocessing. It takes a consistent-global snapshot of all participating nodes which contains both the individual state of each node and the individual state of each communication channel.
+We implement a distributed bank system based on Chandy-Lamport global snapshot algorithm in Python by using Multiprocessing, which can guarantee processes don't share memory space. We use python multiprocessing manager queues as the communication channel, and we implemented each block condition by pooling the value of certain event/flag. It takes a consistent-global snapshot of all participating nodes which contains both the individual state/account balance of each node and the individual state/transactions of each communication channel.
 
-The master.py includes all methods we need in our system. The operation of all nodes is defined in node.py. The arg.txt records a test case we input to our system. More test cases can be found in this folder.
+The master.py startes a master program and can execute all the command needed by the system. The operation of all nodes is defined in node.py. Everytime we create a node, a node object is initiated which starts a process, and setting up connections with other nodes in the system. The arg.txt records a test case we input to our system. Our test cases vary in the number of nodes and the number of transactions. More test cases can be found in this folder.
 
-How to run: python master.py arg.txt
+How to run: python3 master.py arg.txt
 
 Description:
 In our implementation, we consider the current process as a master node. Once a new node is created, it will start a new process which does not share memory space with other nodes. If a command is to send or receive, the master node needs to notify a sender or receiver to execute this command. All messages are transmitted by queues.
 
+Our protocol simulates a distributed bank, inside which each node can send/receive money from others. Our protocol also can take snapshot of the distributed system. The snapshot is a command the master sends to an observer node, who initiates the snapshot by sending the message to a specific node. Our snapshot algorithm is chandy-lamport, so the result is guaranteed to be consistent due to the algorithm. 
+
 Once a node receives the “TakeSnapshot” message from the Observer Node for the first time, it records its local state and relays this message along all of its outgoing channels. In the meantime, this node starts recording messages received over each of its other incoming channels and append them into its corresponding channel states. When this node receives a “TakeSnapshot” message from one of its incoming channel, it stops recording any messages from this channel. Once it receives that message from all its incoming channels, it finishes collecting the global state.
+
 
 
 
