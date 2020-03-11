@@ -7,7 +7,6 @@ Send 1 2 400
 Receive 2 1
 BeginSnapshot 1
 Receive 2
-1 Transfer 400
 Receive 2
 Receive 2
 Receive 2
