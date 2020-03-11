@@ -6,7 +6,7 @@ import multiprocessing.managers as mpm
 from node import Node
 import atexit
 
-
+receiveall_called = False
 #patching python3 bug
 backup_autoproxy = mpm.AutoProxy
 
@@ -42,13 +42,13 @@ def KillAll(All_Process, All_Node):
     for node in All_Node:
         del node
 
-def StartMaster_Observer(All_Process, All_Node, master_queue):
+def StartMaster_Observer(All_Process, All_Node, master_queue, observer_queue):
     
     #observer only send but not receive
     ObserverSendEvent = multiprocessing.Event()
     Observer_addchannel = multiprocessing.Event()
     ObserverCollectEvent = multiprocessing.Event()
-    Observer = Node(ObserverSendEvent, None, Observer_addchannel, ObserverCollectEvent, None, None, None, 'Observer', '0', 0, master_queue)
+    Observer = Node(ObserverSendEvent, None, Observer_addchannel, ObserverCollectEvent, None, None, None, 'Observer', '0', 0, master_queue, observer_queue)
     # print(type(Observer.node_id))
     All_Process.append(Observer.node_process)
     All_Node.append(Observer)
@@ -63,7 +63,7 @@ def CreateNode(Node_ID, Initial_Balance, master_queue, All_Process, All_Node, Al
     Node_snapshot = multiprocessing.Event()
     Node_snapshot_finish_event = multiprocessing.Event()
     Node_receiveall_event = multiprocessing.Event()
-    Current_Node = Node(Node_sendEvent, Node_receiveEvent, Node_addchannel, Node_collectEvent, Node_snapshot, Node_snapshot_finish_event, Node_receiveall_event, 'Node', Node_ID, int(Initial_Balance), master_queue)
+    Current_Node = Node(Node_sendEvent, Node_receiveEvent, Node_addchannel, Node_collectEvent, Node_snapshot, Node_snapshot_finish_event, Node_receiveall_event, 'Node', Node_ID, int(Initial_Balance), master_queue,None)
     All_Process.append(Current_Node.node_process)
     All_Node.append(Current_Node)
 
@@ -153,9 +153,17 @@ def DetectChannel(All_Queue):
 
 
 def ReceiveAll(All_Process, All_Node, All_Queue):
+    global receiveall_called
     for node in All_Node:
         if(node.node_type != 'Observer'):
-            node.receiveall_event.set()
+            if(not node.receiveall_event.is_set()):
+                node.receiveall_event.set()
+            else:
+                while(True):
+                    if(not node.receiveall_event.is_set()):
+                        node.receiveall_event.set()
+                        break
+       
 
     non_empty_channel = DetectChannel(All_Queue)
     
@@ -179,7 +187,7 @@ def ReceiveAll(All_Process, All_Node, All_Queue):
         if(node.node_type != 'Observer'):
             node.snapshot_finish_event.clear()
             node.receiveall_event.clear()
-    
+    receiveall_called = True
 
 def BeginSnapshot(NodeID, SendNode, All_Process, All_Node):
     #time.sleep(0.3)
@@ -203,6 +211,7 @@ def BeginSnapshot(NodeID, SendNode, All_Process, All_Node):
 
 
 def CollectState(All_Process, All_Node):
+    global receiveall_called
     for node in All_Node:
         if(node.node_type == 'Observer'):
             msg = "Collect"
@@ -215,16 +224,22 @@ def CollectState(All_Process, All_Node):
                         node.master_queue.put(msg)
                         node.collect_event.set()
                         break
-
+   
+    while(True):
+        if(receiveall_called):
+            break
+    
     for node in All_Node:
         if(node.node_type != 'Observer'):
-            if(not node.collect_event.is_set()):
+            if( (not node.collect_event.is_set()) and (not node.receive_event.is_set() ) and (not node.receiveall_event.is_set() )):
                 node.collect_event.set()
             else:
                 while(True):
-                    if(not node.collect_event.is_set()):
+                    if((not node.collect_event.is_set()) and (not node.receive_event.is_set() ) and (not node.receiveall_event.is_set() )):
                         node.collect_event.set()
                         break
+
+    receiveall_called = False
 
 
 def PrintSnapshot(All_Node, observer_queue):
@@ -235,10 +250,10 @@ def PrintSnapshot(All_Node, observer_queue):
     while(True):
         #print(observer_queue.empty())
         #time.sleep(0.1)
-        if(not observer_queue.empty()): 
+        if((not observer_queue.empty()) ): 
             observer_msg = observer_queue.get()
             break
-
+    
     for nodeid in observer_msg:
         all_node_state[int(nodeid)] = observer_msg[nodeid][0]
         #observer_msg[nodeid][1]=channel_state
@@ -278,8 +293,8 @@ def argument_parsing(current_command_list, All_Process, All_Node, All_Queue, man
     
     if(current_command_list[0] == 'StartMaster'):
         # connection between master and observer, unidirection queue, only master to observer
-        master_queue = observer_queue
-        StartMaster_Observer(All_Process, All_Node, master_queue)
+        master_queue = manager.Queue()
+        StartMaster_Observer(All_Process, All_Node, master_queue, observer_queue)
 
     elif(current_command_list[0] == 'CreateNode'):
         # connection between master and observer, unidirection queue, only master to observer
@@ -325,7 +340,7 @@ def argument_parsing(current_command_list, All_Process, All_Node, All_Queue, man
 
 
 if __name__ == "__main__": 
-
+    
     #our master is our current process
 
     #a list of all alive process
@@ -353,12 +368,12 @@ if __name__ == "__main__":
             line = af.readline()
     af.close()
     # print(command_list)
-
+    #obserer tp master
     observer_queue = manager.Queue()
     for command in command_list:
         print(" ".join(command))
         argument_parsing(command, All_Process, All_Node, All_Queue, manager,observer_queue)
-        time.sleep(0.1)
+        #time.sleep(0.1)
         
     time.sleep(2)
     KillAll(All_Process,All_Node)

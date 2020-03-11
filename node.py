@@ -7,7 +7,7 @@ import multiprocessing.managers as mpm
 
 #a class for node
 class Node:
-    def __init__(self, send_event, receive_event, channel_event, collect_event, snapshot_event, snapshot_finish_event, receiveall_event, node_type, Node_ID, Initial_Balance, master_queue):
+    def __init__(self, send_event, receive_event, channel_event, collect_event, snapshot_event, snapshot_finish_event, receiveall_event, node_type, Node_ID, Initial_Balance, master_queue, observer_queue):
         
         self.node_type = node_type
         self.node_id = Node_ID
@@ -28,7 +28,7 @@ class Node:
 
         #start process
         if(self.node_type == 'Observer'):
-            self.node_process = multiprocessing.Process(target=self.observer_notify, args=(master_queue, send_event, receive_event, channel_event, collect_event, node_type, Node_ID, Initial_Balance))
+            self.node_process = multiprocessing.Process(target=self.observer_notify, args=(master_queue, observer_queue, send_event, receive_event, channel_event, collect_event, node_type, Node_ID, Initial_Balance))
         else: 
             self.node_process = multiprocessing.Process(target=self.node_notify, args=(master_queue, send_event, receive_event, channel_event, collect_event, snapshot_event, snapshot_finish_event, receiveall_event, node_type, Node_ID, Initial_Balance))
        
@@ -36,7 +36,7 @@ class Node:
         
     
 
-    def observer_notify(self, master_queue, send_event, receive_event, channel_event, collect_event, node_type, Node_ID, Initial_Balance):
+    def observer_notify(self, master_queue, observer_queue, send_event, receive_event, channel_event, collect_event, node_type, Node_ID, Initial_Balance):
 
         #need to reinitialize because in different memory space
         self.node_type = node_type
@@ -49,6 +49,7 @@ class Node:
         self.collect_event = collect_event
         #connection from master to observer
         self.master_queue = master_queue
+        self.observer_queue = observer_queue
         # a dictionary of incomming queue/channel, key: other node in the network, value: channel
         self.in_queue = {}
         # a dictionary of outgoing queue/channel, key: other node in the network, value: channel
@@ -93,7 +94,9 @@ class Node:
             if( (not(len(self.in_queue)==0)) and (count_msg == len(self.in_queue)) ):
                 count_msg=0
                 copy_final_state = copy.deepcopy(final_state)
-                self.master_queue.put(copy_final_state)
+                print("master:" )
+                print(copy_final_state)
+                self.observer_queue.put(copy_final_state)
                 final_state={}
                 self.collect_event.clear()
                 collect_sent = False
@@ -201,6 +204,7 @@ class Node:
                     self.balance=self.balance+int(retrieve)
                     if((first_snap == False) and (sender!=incoming_node_id)):
                         channel_state[sender].append(int(retrieve))
+                        
                 
                 self.receive_event.clear()
             
@@ -212,6 +216,7 @@ class Node:
                     self.out_queue['0'].put(msg)
                     self.collect_event.clear()
                     self.snapshot_finish_event.clear()
+                    self.snapshot_event.clear()
                     save_state=0
                     incoming_node_id=0
                     first_snap = True
@@ -228,4 +233,4 @@ class Node:
                             if other_node_id != '0':
                                 self.out_queue[other_node_id].put(msg)
                                 channel_state[other_node_id] = []
-                        self.snapshot_event.clear()
+                        #self.snapshot_event.clear()
