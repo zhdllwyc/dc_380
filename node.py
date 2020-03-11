@@ -7,7 +7,7 @@ import multiprocessing.managers as mpm
 
 #a class for node
 class Node:
-    def __init__(self, send_event, receive_event, channel_event, collect_event, snapshot_event, snapshot_finish_event, node_type, Node_ID, Initial_Balance, master_queue):
+    def __init__(self, send_event, receive_event, channel_event, collect_event, snapshot_event, snapshot_finish_event, receiveall_event, node_type, Node_ID, Initial_Balance, master_queue):
         
         self.node_type = node_type
         self.node_id = Node_ID
@@ -21,6 +21,7 @@ class Node:
         self.channel_event = channel_event
         self.collect_event = collect_event
         self.snapshot_event = snapshot_event
+        self.receiveall_event = receiveall_event
         self.snapshot_finish_event = snapshot_finish_event
         #the channel between given node and the master
         self.master_queue = master_queue
@@ -29,7 +30,7 @@ class Node:
         if(self.node_type == 'Observer'):
             self.node_process = multiprocessing.Process(target=self.observer_notify, args=(master_queue, send_event, receive_event, channel_event, collect_event, node_type, Node_ID, Initial_Balance))
         else: 
-            self.node_process = multiprocessing.Process(target=self.node_notify, args=(master_queue, send_event, receive_event, channel_event, collect_event, snapshot_event, snapshot_finish_event, node_type, Node_ID, Initial_Balance))
+            self.node_process = multiprocessing.Process(target=self.node_notify, args=(master_queue, send_event, receive_event, channel_event, collect_event, snapshot_event, snapshot_finish_event, receiveall_event, node_type, Node_ID, Initial_Balance))
        
         self.node_process.start()
         
@@ -84,15 +85,13 @@ class Node:
                 
             for nodeid in self.in_queue:
                 if(not self.in_queue[nodeid].empty()):
-                    print("counting ", count_msg)
-                    print("msg ", msg)
+                    # print("counting ", count_msg)
                     count_msg = count_msg+1
                     msg = self.in_queue[nodeid].get()
                     final_state[nodeid] = msg
             
             if( (not(len(self.in_queue)==0)) and (count_msg == len(self.in_queue)) ):
                 count_msg=0
-                print(final_state)
                 copy_final_state = copy.deepcopy(final_state)
                 self.master_queue.put(copy_final_state)
                 final_state={}
@@ -101,7 +100,7 @@ class Node:
             
 
 
-    def node_notify(self, master_queue, send_event, receive_event, channel_event, collect_event, snapshot_event, snapshot_finish_event, node_type, Node_ID, Initial_Balance):
+    def node_notify(self, master_queue, send_event, receive_event, channel_event, collect_event, snapshot_event, snapshot_finish_event, receiveall_event, node_type, Node_ID, Initial_Balance):
 
         #indicating if this node ever receive a snapshot command
         #saved state when receive snapshot msg
@@ -123,6 +122,7 @@ class Node:
         self.channel_event = channel_event
         self.collect_event = collect_event
         self.snapshot_event = snapshot_event
+        self.receiveall_event = receiveall_event
         self.snapshot_finish_event = snapshot_finish_event
         self.snapshot_finish_event.clear()
         #connection from master to this node/process
@@ -150,15 +150,11 @@ class Node:
                 if(amount > self.balance):
                     print("ERR_SEND")
                 else:
-                    print(self.balance)
                     self.balance=self.balance-amount
-                    print(self.balance)
                     send_msg = str(amount)
                     self.out_queue[receiver].put(send_msg)
                 
                 self.send_event.clear()
-
-            
 
             #upon receiving 
             if(self.receive_event.is_set()):
@@ -166,9 +162,6 @@ class Node:
                 receiver = msg[0]
                 sender = msg[1]
                 retrieve = None
-                print("msg")
-                print(msg)
-                print(sender)
                 
                 if (sender!="None" and (not self.in_queue[sender].empty()) ):
                     retrieve = self.in_queue[sender].get()
@@ -186,13 +179,12 @@ class Node:
                     self.receive_event.clear()
                     continue
                 if(retrieve == "TakeSnapshot"):
-                    print(self.node_id+" Takesnapshot")
                     number_of_snapshot = number_of_snapshot+1
                     if(first_snap): 
                         first_snap = False
                         save_state = self.balance
                         incoming_node_id = sender
-                        print(sender+ " " +retrieve+ " " +"-1")
+                        if not receiveall_event.is_set(): print(sender+ " " +retrieve+ " " +"-1")
                         msg = "TakeSnapshot"
                         channel_state={}
                         for other_node_id in self.out_queue:
@@ -200,19 +192,13 @@ class Node:
                                 self.out_queue[other_node_id].put(msg)
                                 channel_state[other_node_id] = []
                     if(number_of_snapshot == (len(self.out_queue)-1)):
-                        print(self.node_id, "SNAPSHOT FINISHED")
+                        # print(self.node_id, "SNAPSHOT FINISHED")
                         self.snapshot_finish_event.set()
                         final_channel_state = copy.deepcopy(channel_state)
                         number_of_snapshot=0
-                        print(self.node_id,self.snapshot_finish_event.is_set())
                 else:
-                    print(sender+ " " +"Transfer"+ " " +retrieve)
-                    print("receive event ",self.receive_event.is_set())
-                    print("collect event ",self.collect_event.is_set())
-                    print(self.node_id, self.snapshot_finish_event.is_set())
-                    print(self.balance)
+                    if not receiveall_event.is_set(): print(sender+ " " +"Transfer"+ " " +retrieve)
                     self.balance=self.balance+int(retrieve)
-                    print(self.balance)
                     if((first_snap == False) and (sender!=incoming_node_id)):
                         channel_state[sender].append(int(retrieve))
                 
@@ -222,12 +208,8 @@ class Node:
             #sending own saved state and channel state to observer
             if(self.collect_event.is_set()):
                 if(self.in_queue['0'].get() == "Collect"):
-                    print("Node state is ", save_state)
-                    print("Node recieve state is ", self.receive_event.is_set())
-                    print("Channel state is ", channel_state)
                     msg = [save_state, final_channel_state]
                     self.out_queue['0'].put(msg)
-                    print("empty queue ", self.out_queue['0'].empty())
                     self.collect_event.clear()
                     self.snapshot_finish_event.clear()
                     save_state=0
@@ -241,11 +223,9 @@ class Node:
                         first_snap = False
                         save_state = self.balance
                         msg = self.in_queue['0'].get()
-                        print(self.node_id+ " "+msg)
                         channel_state={}
                         for other_node_id in self.out_queue:
                             if other_node_id != '0':
-                                print(other_node_id+ " "+msg)
                                 self.out_queue[other_node_id].put(msg)
                                 channel_state[other_node_id] = []
                         self.snapshot_event.clear()
