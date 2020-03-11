@@ -113,7 +113,7 @@ class Node:
         save_state = 0
         channel_state = {}
         final_channel_state={}
-        incoming_node_id = 0
+        incoming_node_id = []
         number_of_snapshot = 0
         #need to reinitialize because in different memory space
         self.node_type = node_type
@@ -183,10 +183,11 @@ class Node:
                     continue
                 if(retrieve == "TakeSnapshot"):
                     number_of_snapshot = number_of_snapshot+1
+                    incoming_node_id.append(sender)
                     if(first_snap): 
                         first_snap = False
                         save_state = self.balance
-                        incoming_node_id = sender
+                        # incoming_node_id = sender
                         if not receiveall_event.is_set(): print(sender+ " " +retrieve+ " " +"-1")
                         msg = "TakeSnapshot"
                         channel_state={}
@@ -202,7 +203,7 @@ class Node:
                 else:
                     if not receiveall_event.is_set(): print(sender+ " " +"Transfer"+ " " +retrieve)
                     self.balance=self.balance+int(retrieve)
-                    if((first_snap == False) and (sender!=incoming_node_id)):
+                    if((first_snap == False) and (sender not in incoming_node_id)):
                         channel_state[sender].append(int(retrieve))
                         
                 
@@ -218,7 +219,7 @@ class Node:
                     self.snapshot_finish_event.clear()
                     self.snapshot_event.clear()
                     save_state=0
-                    incoming_node_id=0
+                    incoming_node_id=[]
                     first_snap = True
 
             #polling on the observer incoming channel, this is the node the observer send the snapshot msg
