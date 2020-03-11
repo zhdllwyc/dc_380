@@ -3,7 +3,13 @@ UTEID:    yw23835       zh4938
 CS ids:  yingchen        zyhe
 
 
-We implement a crude distributed bank system based on Chandy-Lamport global snapshot algorithm in Python by using Multiprocessing. It takes a consistent-global snapshot of all participating nodes which contains both the individual state of each node and the individual state of each communication channel.
+We implement a distributed bank system based on Chandy-Lamport global snapshot algorithm in Python by using Multiprocessing. It takes a consistent-global snapshot of all participating nodes which contains both the individual state of each node and the individual state of each communication channel.
+
+The master.py includes all methods we need in our system. The operation of all nodes is defined in node.py. The arg.txt records a test case we input to our system. More test cases can be found in this folder.
+
+How to run: python master.py arg.txt
+
+
 
 
 
