@@ -94,8 +94,6 @@ class Node:
             if( (not(len(self.in_queue)==0)) and (count_msg == len(self.in_queue)) ):
                 count_msg=0
                 copy_final_state = copy.deepcopy(final_state)
-                print("master:" )
-                print(copy_final_state)
                 self.observer_queue.put(copy_final_state)
                 final_state={}
                 self.collect_event.clear()
