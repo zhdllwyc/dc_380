@@ -9,6 +9,11 @@ The master.py includes all methods we need in our system. The operation of all n
 
 How to run: python master.py arg.txt
 
+Description:
+In our implementation, we consider the current process as a master node. Once a new node is created, it will start a new process which does not share memory space with other nodes. If a command is to send or receive, the master node needs to notify a sender or receiver to execute this command. All messages are transmitted by queues.
+
+Once the process pi receives the “TakeSnapshot” message for the first time, it records its local state and relays the “TakeSnapshot” message along all of its outgoing channels. In the meantime, pi starts recording messages received over each of its other incoming channels and append them into its corresponding channel states.
+
 
 
 
