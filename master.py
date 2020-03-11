@@ -48,7 +48,7 @@ def StartMaster_Observer(All_Process, All_Node, master_queue):
     ObserverSendEvent = multiprocessing.Event()
     Observer_addchannel = multiprocessing.Event()
     ObserverCollectEvent = multiprocessing.Event()
-    Observer = Node(ObserverSendEvent, None, Observer_addchannel, ObserverCollectEvent, None, None, 'Observer', '0', 0, master_queue)
+    Observer = Node(ObserverSendEvent, None, Observer_addchannel, ObserverCollectEvent, None, None, None, 'Observer', '0', 0, master_queue)
     # print(type(Observer.node_id))
     All_Process.append(Observer.node_process)
     All_Node.append(Observer)
@@ -62,7 +62,8 @@ def CreateNode(Node_ID, Initial_Balance, master_queue, All_Process, All_Node, Al
     Node_collectEvent = multiprocessing.Event()
     Node_snapshot = multiprocessing.Event()
     Node_snapshot_finish_event = multiprocessing.Event()
-    Current_Node = Node(Node_sendEvent, Node_receiveEvent, Node_addchannel, Node_collectEvent, Node_snapshot, Node_snapshot_finish_event, 'Node', Node_ID, int(Initial_Balance), master_queue)
+    Node_receiveall_event = multiprocessing.Event()
+    Current_Node = Node(Node_sendEvent, Node_receiveEvent, Node_addchannel, Node_collectEvent, Node_snapshot, Node_snapshot_finish_event, Node_receiveall_event, 'Node', Node_ID, int(Initial_Balance), master_queue)
     All_Process.append(Current_Node.node_process)
     All_Node.append(Current_Node)
 
@@ -109,9 +110,7 @@ def Send(Sender_ID, Receiver_ID, Amount, All_Process, All_Node):
     for node in All_Node:
         if(node.node_id == Sender_ID):
              msg = Sender_ID + " " + Receiver_ID + " " + str(Amount)
-             print(msg)
              if(not node.send_event.is_set()):
-                 print(msg)
                  node.master_queue.put(msg)
                  node.send_event.set()
              else:
@@ -143,39 +142,31 @@ def DetectChannel(All_Queue):
     for each_queue in All_Queue:
         if each_queue[0] and each_queue[1]:
             if not each_queue[2].empty():
-                
-                print(each_queue[0]+" "+each_queue[1])
                 Receiver_ID = each_queue[1]
                 Sender_ID = each_queue[0]
                 non_empty_channel.append([Receiver_ID, Sender_ID])
             if not each_queue[3].empty():
-                
-                print(each_queue[0]+" "+each_queue[1])
                 Receiver_ID = each_queue[0]
                 Sender_ID = each_queue[1]
                 non_empty_channel.append([Receiver_ID, Sender_ID])
-                print(type(Receiver_ID))
-    print(non_empty_channel)
     return non_empty_channel
 
 
 def ReceiveAll(All_Process, All_Node, All_Queue):
+    for node in All_Node:
+        if(node.node_type != 'Observer'):
+            node.receiveall_event.set()
+
     non_empty_channel = DetectChannel(All_Queue)
-    print(len(non_empty_channel))
     
     while(len(non_empty_channel)>0):
-        print("-----------------------------")
-        print(non_empty_channel)
         random_channel = random.randint(0, len(non_empty_channel)-1)
-        print(random_channel)
 
         receiver=None
         receiver_id = non_empty_channel[random_channel][0]
-        print("receiver id "+receiver_id)
         for temp_node in All_Node:
             if(temp_node.node_id == non_empty_channel[random_channel][0]):
                 receiver=temp_node
-        print("receiver id "+receiver.node_id)
         Receive(receiver_id, non_empty_channel[random_channel][1], All_Process, All_Node)
         
         while True:
@@ -183,15 +174,12 @@ def ReceiveAll(All_Process, All_Node, All_Queue):
                 break
         
         non_empty_channel = DetectChannel(All_Queue)
-        print(non_empty_channel)
-        print("-------------------------------------------------")
-    
     
     for node in All_Node:
         if(node.node_type != 'Observer'):
             node.snapshot_finish_event.clear()
+            node.receiveall_event.clear()
     
-
 
 def BeginSnapshot(NodeID, SendNode, All_Process, All_Node):
     #time.sleep(0.3)
@@ -249,9 +237,8 @@ def PrintSnapshot(All_Node, observer_queue):
         #time.sleep(0.1)
         if(not observer_queue.empty()): 
             observer_msg = observer_queue.get()
-            print(observer_msg)
             break
-    print(observer_msg)
+
     for nodeid in observer_msg:
         all_node_state[int(nodeid)] = observer_msg[nodeid][0]
         #observer_msg[nodeid][1]=channel_state
@@ -356,7 +343,6 @@ if __name__ == "__main__":
     '''
         
     arg_file= sys.argv[1]
-    print(arg_file)
   
     command_list = []
     with open(arg_file) as af:
@@ -366,7 +352,7 @@ if __name__ == "__main__":
             command_list.append(temp_arg)
             line = af.readline()
     af.close()
-    print(command_list)
+    # print(command_list)
 
     observer_queue = manager.Queue()
     for command in command_list:
