@@ -49,7 +49,7 @@ def StartMaster_Observer(All_Process, All_Node, master_queue, observer_queue):
     Observer_addchannel = multiprocessing.Event()
     ObserverCollectEvent = multiprocessing.Event()
     Observer = Node(ObserverSendEvent, None, Observer_addchannel, ObserverCollectEvent, None, None, None, 'Observer', '0', 0, master_queue, observer_queue)
-    # print(type(Observer.node_id))
+    #save all processes and nodes in the current process so that the master can access them
     All_Process.append(Observer.node_process)
     All_Node.append(Observer)
 
@@ -114,6 +114,7 @@ def Send(Sender_ID, Receiver_ID, Amount, All_Process, All_Node):
                  node.master_queue.put(msg)
                  node.send_event.set()
              else:
+                #block until this message is enqueued
                  while(True):
                      if(not node.send_event.is_set()):
                          node.master_queue.put(msg)
@@ -122,14 +123,15 @@ def Send(Sender_ID, Receiver_ID, Amount, All_Process, All_Node):
 
 
 def Receive(Receiver_ID, Sender_ID, All_Process, All_Node):
+    #The master command tells the receive to get message in the queue:
     for node in All_Node:
-        #and (not node.snapshot_finish_event.is_set())
         if (node.node_id == Receiver_ID) :
             msg = Receiver_ID + " " + Sender_ID
             if(not node.receive_event.is_set()):
                 node.master_queue.put(msg)
                 node.receive_event.set()
             else:
+                #block until this message is enqueued
                 while(True):
                     if(not node.receive_event.is_set()):
                         node.master_queue.put(msg)
@@ -138,6 +140,7 @@ def Receive(Receiver_ID, Sender_ID, All_Process, All_Node):
 
 
 def DetectChannel(All_Queue):
+    #Detect all non-empty channels and store them in a list
     non_empty_channel = []
     for each_queue in All_Queue:
         if each_queue[0] and each_queue[1]:
@@ -153,6 +156,7 @@ def DetectChannel(All_Queue):
 
 
 def ReceiveAll(All_Process, All_Node, All_Queue):
+    #Drain channels of messages
     global receiveall_called
     for node in All_Node:
         if(node.node_type != 'Observer'):
@@ -166,7 +170,7 @@ def ReceiveAll(All_Process, All_Node, All_Queue):
        
 
     non_empty_channel = DetectChannel(All_Queue)
-    
+    #Call Receive until there are no empty channels
     while(len(non_empty_channel)>0):
         random_channel = random.randint(0, len(non_empty_channel)-1)
 
@@ -190,7 +194,6 @@ def ReceiveAll(All_Process, All_Node, All_Queue):
     receiveall_called = True
 
 def BeginSnapshot(NodeID, SendNode, All_Process, All_Node):
-    #time.sleep(0.3)
     #Observer sends a takesnapsot msg to the given node
     for node in All_Node:
         if(node.node_type == 'Observer'):
@@ -211,6 +214,7 @@ def BeginSnapshot(NodeID, SendNode, All_Process, All_Node):
 
 
 def CollectState(All_Process, All_Node):
+    #Observer collects an individual state of each node and an individual state of each channel
     global receiveall_called
     for node in All_Node:
         if(node.node_type == 'Observer'):
@@ -243,6 +247,7 @@ def CollectState(All_Process, All_Node):
 
 
 def PrintSnapshot(All_Node, observer_queue):
+    #Print out the collected global state
     N = len(All_Node)
     all_node_state = [0] * N
     all_channel_state = [[0]*N for i in range(N)]
@@ -350,12 +355,6 @@ if __name__ == "__main__":
     #a list of all queues
     All_Queue = []
     manager = multiprocessing.Manager()
-    '''
-    while( True ):
-        user_input = input()
-        current_command_list = user_input.split()
-        argument_parsing(current_command_list, All_Process, All_Node, All_Queue, manager)
-    '''
         
     arg_file= sys.argv[1]
   
@@ -367,8 +366,8 @@ if __name__ == "__main__":
             command_list.append(temp_arg)
             line = af.readline()
     af.close()
-    # print(command_list)
-    #obserer tp master
+
+    #obserer to master
     observer_queue = manager.Queue()
     for command in command_list:
         print(" ".join(command))
