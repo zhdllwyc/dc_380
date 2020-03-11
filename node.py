@@ -47,7 +47,7 @@ class Node:
         self.receive_event = receive_event
         self.channel_event = channel_event
         self.collect_event = collect_event
-        #connection from master to observer
+        #connection from master to observer, and observer to master
         self.master_queue = master_queue
         self.observer_queue = observer_queue
         # a dictionary of incomming queue/channel, key: other node in the network, value: channel
@@ -76,21 +76,22 @@ class Node:
                 sender_id = msg[1]
                 self.out_queue[sender_id].put("TakeSnapshot")
                 self.send_event.clear()
-
+            #Observer send the command to collect state from nodes
             if((collect_sent==False) and (self.collect_event.is_set())):
                 msg = self.master_queue.get()
                 if msg == "Collect":
                     for node_id in self.out_queue:
                         self.out_queue[node_id].put(msg)
                 collect_sent = True
-                
+            
+            #Collect the state from nodes
             for nodeid in self.in_queue:
                 if(not self.in_queue[nodeid].empty()):
-                    # print("counting ", count_msg)
                     count_msg = count_msg+1
                     msg = self.in_queue[nodeid].get()
                     final_state[nodeid] = msg
             
+            #Report states back to the master
             if( (not(len(self.in_queue)==0)) and (count_msg == len(self.in_queue)) ):
                 count_msg=0
                 copy_final_state = copy.deepcopy(final_state)
@@ -126,7 +127,7 @@ class Node:
         self.receiveall_event = receiveall_event
         self.snapshot_finish_event = snapshot_finish_event
         self.snapshot_finish_event.clear()
-        #connection from master to this node/process
+        #connection from master to this node/process, so the master can tell this node to receive and send
         self.master_queue = master_queue
         # a dictionary of incomming queue/channel, key: other node in the network, value: channel
         self.in_queue = {}
@@ -142,7 +143,7 @@ class Node:
                 self.in_queue[new_node_id] = in_channel
                 self.out_queue[new_node_id] = out_channel
                 self.channel_event.clear()
-
+            #Master telling this node to send
             if(self.send_event.is_set()):
                 
                 msg = self.master_queue.get().split()
@@ -157,7 +158,7 @@ class Node:
                 
                 self.send_event.clear()
 
-            #upon receiving 
+            #Master telling this node to receive
             if(self.receive_event.is_set()):
                 msg = self.master_queue.get().split()
                 receiver = msg[0]
@@ -208,7 +209,7 @@ class Node:
                 self.receive_event.clear()
             
             
-            #sending own saved state and channel state to observer
+            #Sending own saved state and channel state to observer
             if(self.collect_event.is_set()):
                 if(self.in_queue['0'].get() == "Collect"):
                     msg = [save_state, final_channel_state]
@@ -220,7 +221,7 @@ class Node:
                     incoming_node_id=[]
                     first_snap = True
 
-            #polling on the observer incoming channel, this is the node the observer send the snapshot msg
+            #Polling on the observer incoming channel, this is the node the observer send the snapshot msg
             if(len(self.in_queue)!=0):
                 if(not self.in_queue['0'].empty()):
                     if(first_snap):
