@@ -143,31 +143,55 @@ def DetectChannel(All_Queue):
     for each_queue in All_Queue:
         if each_queue[0] and each_queue[1]:
             if not each_queue[2].empty():
+                
+                print(each_queue[0]+" "+each_queue[1])
                 Receiver_ID = each_queue[1]
                 Sender_ID = each_queue[0]
-                non_empty_channel.append([Receiver_ID, Sender_ID, each_queue[2].qsize()])
+                non_empty_channel.append([Receiver_ID, Sender_ID])
             if not each_queue[3].empty():
+                
+                print(each_queue[0]+" "+each_queue[1])
                 Receiver_ID = each_queue[0]
                 Sender_ID = each_queue[1]
-                non_empty_channel.append([Receiver_ID, Sender_ID, each_queue[3].qsize()])
+                non_empty_channel.append([Receiver_ID, Sender_ID])
+                print(type(Receiver_ID))
+    print(non_empty_channel)
     return non_empty_channel
 
 
 def ReceiveAll(All_Process, All_Node, All_Queue):
+    print(All_Queue)
     non_empty_channel = DetectChannel(All_Queue)
-    while True:
-        # print(non_empty_channel)
-        random_channel = random.randint(0, len(non_empty_channel)-1)
-        Receive(non_empty_channel[random_channel][0], non_empty_channel[random_channel][1], All_Process, All_Node)
-        non_empty_channel = DetectChannel(All_Queue)
-        if(len(non_empty_channel)==0):
-            break
     print(len(non_empty_channel))
     
+    while(len(non_empty_channel)>0):
+        print("-----------------------------")
+        print(non_empty_channel)
+        random_channel = random.randint(0, len(non_empty_channel)-1)
+        print(random_channel)
+
+        receiver=None
+        receiver_id = non_empty_channel[random_channel][0]
+        print("receiver id "+receiver_id)
+        for temp_node in All_Node:
+            if(temp_node.node_id == non_empty_channel[random_channel][0]):
+                receiver=temp_node
+        print("receiver id "+receiver.node_id)
+        Receive(receiver_id, non_empty_channel[random_channel][1], All_Process, All_Node)
+        
+        while True:
+            if(not receiver.receive_event.is_set()):
+                break
+        
+        non_empty_channel = DetectChannel(All_Queue)
+        print(non_empty_channel)
+        print("-------------------------------------------------")
+    
+    '''
     for node in All_Node:
         if(node.node_type != 'Observer'):
             node.snapshot_finish_event.clear()
-    
+    '''
 
 
 def BeginSnapshot(NodeID, SendNode, All_Process, All_Node):

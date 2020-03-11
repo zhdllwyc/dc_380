@@ -166,14 +166,20 @@ class Node:
                 receiver = msg[0]
                 sender = msg[1]
                 retrieve = None
+                print("msg")
                 print(msg)
+                print(sender)
                 if (sender!="None"):
                     retrieve = self.in_queue[sender].get()
                 else:
                     sender = random.choice(list(self.in_queue.keys())[1:])
                     retrieve = self.in_queue[sender].get()
                 print(retrieve)
+                if(self.in_queue[sender].empty()):
+                    self.receive_event.clear()
+                    continue
                 if(retrieve == None):
+                    self.receive_event.clear()
                     continue
                 if(retrieve == "TakeSnapshot"):
                     print(self.node_id+" Takesnapshot")

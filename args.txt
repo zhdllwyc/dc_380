@@ -9,8 +9,11 @@ Send 1 2 400
 Send 3 4 300
 Send 2 1 100
 Send 1 3 400
+BeginSnapshot 1
 Receive 2 1
 1 Transfer 300
 Receive 2
 1 Transfer 400
 ReceiveAll
+CollectState
+PrintSnapshot
