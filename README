@@ -12,7 +12,7 @@ How to run: python master.py arg.txt
 Description:
 In our implementation, we consider the current process as a master node. Once a new node is created, it will start a new process which does not share memory space with other nodes. If a command is to send or receive, the master node needs to notify a sender or receiver to execute this command. All messages are transmitted by queues.
 
-Once a node receives the “TakeSnapshot” message from the Observer Node for the first time, it records its local state and relays the “TakeSnapshot” message along all of its outgoing channels. In the meantime, this node starts recording messages received over each of its other incoming channels and append them into its corresponding channel states. When this node receives a “TakeSnapshot” message from one of its incoming channel, it stops recording any messages from this channel. Once it receives the “TakeSnapshot” message from all its incoming channels, it finishes collecting the global state.
+Once a node receives the “TakeSnapshot” message from the Observer Node for the first time, it records its local state and relays this message along all of its outgoing channels. In the meantime, this node starts recording messages received over each of its other incoming channels and append them into its corresponding channel states. When this node receives a “TakeSnapshot” message from one of its incoming channel, it stops recording any messages from this channel. Once it receives that message from all its incoming channels, it finishes collecting the global state.
 
 
 
